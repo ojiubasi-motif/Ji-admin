@@ -618,7 +618,28 @@ export default function Products() {
               {form.styleOptions.length > 0 && (
                 <div>
                   <label className="block text-xs font-semibold text-[#1C1916] mb-1.5">Default Style</label>
-                  <input type="text" value={form.defaultStyle} onChange={e => setField('defaultStyle', e.target.value)} placeholder="Name of the default style option" className="w-full border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]" />
+                  {(() => {
+                    const availableStyles = form.styleOptions.flatMap(so =>
+                      so.options.map(opt => `${so.name} - ${opt}`)
+                    );
+                    return (
+                      <select
+                        value={form.defaultStyle}
+                        onChange={e => setField('defaultStyle', e.target.value)}
+                        className="w-full border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]"
+                      >
+                        <option value="">-- Select Default Style --</option>
+                        {form.defaultStyle && !availableStyles.includes(form.defaultStyle) && (
+                          <option value={form.defaultStyle}>{form.defaultStyle}</option>
+                        )}
+                        {availableStyles.map(styleVal => (
+                          <option key={styleVal} value={styleVal}>
+                            {styleVal}
+                          </option>
+                        ))}
+                      </select>
+                    );
+                  })()}
                 </div>
               )}
             </div>
