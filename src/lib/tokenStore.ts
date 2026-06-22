@@ -7,6 +7,7 @@
  */
 
 let accessToken: string | null = null;
+let cachedUser: { id: string; firstName?: string; lastName?: string } | null = null;
 
 export const tokenStore = {
   /**
@@ -24,10 +25,25 @@ export const tokenStore = {
   },
 
   /**
-   * Clear the access token from memory.
+   * Get the cached user profile details from memory.
+   */
+  getCachedUser(): { id: string; firstName?: string; lastName?: string } | null {
+    return cachedUser;
+  },
+
+  /**
+   * Cache the user profile details in memory.
+   */
+  setCachedUser(user: { id: string; firstName?: string; lastName?: string } | null): void {
+    cachedUser = user;
+  },
+
+  /**
+   * Clear the access token and cached user from memory.
    */
   clear(): void {
     accessToken = null;
+    cachedUser = null;
   },
 
   /**

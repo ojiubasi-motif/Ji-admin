@@ -24,9 +24,17 @@ async function performRefresh(): Promise<string | null> {
 
     const data = await response.json();
     const newAccessToken = data?.data?.access_token;
+    const user = data?.data?.user;
 
     if (newAccessToken) {
       tokenStore.setToken(newAccessToken);
+      if (user && user.id) {
+        tokenStore.setCachedUser({
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+        });
+      }
       return newAccessToken;
     }
 
@@ -77,6 +85,31 @@ export async function fetchApi(
     }
   }
 
+  // Inject CSRF token if this is a state-changing auth request
+  const isAuthPost = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(options.method?.toUpperCase() || '') &&
+    (endpoint.startsWith('/auth/login') ||
+     endpoint.startsWith('/auth/register') ||
+     endpoint.startsWith('/auth/forgot-password') ||
+     endpoint.startsWith('/auth/admin/verify-otp'));
+
+  if (isAuthPost) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/csrf-token`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const body = await response.json();
+        const csrfToken = body?.data?.csrfToken;
+        if (csrfToken) {
+          headers['X-CSRF-Token'] = csrfToken;
+        }
+      }
+    } catch (err) {
+      console.error('Failed to inject CSRF token:', err);
+    }
+  }
+
   const { skipAuth: _skipAuth, ...fetchOptions } = options;
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...fetchOptions,
@@ -110,9 +143,22 @@ export async function fetchApi(
     throw new Error(data?.msg || data?.message || `API error: ${response.statusText}`);
   }
 
+  let result = data;
   if (data && typeof data === 'object' && 'data' in data) {
-    return data.data;
+    result = data.data;
   }
 
-  return data;
+  // If the response contains a user profile object, merge the cached firstName/lastName if IDs match
+  if (result && typeof result === 'object' && result.user && result.user.id) {
+    const cached = tokenStore.getCachedUser();
+    if (cached && cached.id === result.user.id) {
+      result.user = {
+        ...result.user,
+        firstName: cached.firstName || result.user.firstName,
+        lastName: cached.lastName || result.user.lastName,
+      };
+    }
+  }
+
+  return result;
 }
