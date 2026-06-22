@@ -25,10 +25,10 @@ export default function App() {
 
   // ── Forgot-password inline panel ──────────────────────────────────────────
   // SECURITY (OWASP Forgot Password CS — Forgot Password Request):
-  // Three-state panel: 'login' | 'forgot' | 'forgotSent'
+  // Three-state panel: 'login' | 'forgot' | 'forgotSent' | 'otp' | 'reset'
   // 'forgotSent' always shows the same generic message regardless of whether
   // the email exists in the DB (prevents user enumeration).
-  const [view, setView] = useState<'login' | 'forgot' | 'forgotSent' | 'otp'>('login');
+  const [view, setView] = useState<'login' | 'forgot' | 'forgotSent' | 'otp' | 'reset'>('login');
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
 
@@ -38,7 +38,29 @@ export default function App() {
   const [otpError, setOtpError] = useState('');
   const [verifyingOtp, setVerifyingOtp] = useState(false);
 
+  // ── Reset-password states ──────────────────────────────────────────────────
+  const [resetToken, setResetToken] = useState('');
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+  const [resetError, setResetError] = useState('');
+  const [resetSuccess, setResetSuccess] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+
   useEffect(() => {
+    // Check if URL is reset-password
+    const isResetPath = window.location.pathname === '/reset-password' || window.location.pathname === '/reset-password/';
+    const tokenFromUrl = new URLSearchParams(window.location.search).get('token');
+
+    if (isResetPath) {
+      if (tokenFromUrl) {
+        setResetToken(tokenFromUrl);
+        setView('reset');
+      } else {
+        setResetError('Invalid or missing password reset token.');
+        setView('reset');
+      }
+    }
+
     async function checkAuth() {
       try {
         // Triggers ensureToken() which does silent refresh
@@ -193,6 +215,52 @@ export default function App() {
     }
   };
 
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetPassword || !resetConfirmPassword) {
+      setResetError('All fields are required.');
+      return;
+    }
+    if (resetPassword.length < 8) {
+      setResetError('Password must be at least 8 characters long.');
+      return;
+    }
+    if (resetPassword.length > 128) {
+      setResetError('Password must not exceed 128 characters.');
+      return;
+    }
+    if (resetPassword !== resetConfirmPassword) {
+      setResetError('Passwords do not match.');
+      return;
+    }
+
+    setResetLoading(true);
+    setResetError('');
+    setResetSuccess('');
+
+    try {
+      await fetchApi('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({
+          token: resetToken,
+          password: resetPassword,
+          confirmPassword: resetConfirmPassword,
+        }),
+        skipAuth: true,
+      });
+
+      setResetSuccess('Your password has been reset successfully. You can now log in.');
+      // Auto-clear auth state on successful reset (since all sessions are invalidated on backend)
+      setIsAuthenticated(false);
+      setCurrentUser(null);
+      tokenStore.clear();
+    } catch (err: any) {
+      setResetError(err.message || 'Password reset failed. Please try again.');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-[#F7F3EC]">
@@ -204,7 +272,7 @@ export default function App() {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || view === 'reset') {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-[#F7F3EC] px-4">
         <div className="w-full max-w-md bg-white border border-[#E5DFD5] rounded-3xl shadow-xl overflow-hidden p-8 space-y-6">
@@ -399,6 +467,105 @@ export default function App() {
                 Back to Sign In
               </button>
             </div>
+          )}
+
+          {/* ── Reset Password Form ── */}
+          {view === 'reset' && (
+            <form onSubmit={handleResetPassword} className="space-y-4">
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setView('login');
+                    setResetPassword('');
+                    setResetConfirmPassword('');
+                    setResetError('');
+                    setResetSuccess('');
+                    // Clean URL query token and path
+                    window.history.replaceState({}, '', '/');
+                  }}
+                  className="text-xs text-[#6B6460] hover:text-[#C8521A] transition-colors mb-3 flex items-center gap-1"
+                >
+                  ← Back to Sign In
+                </button>
+                <h3 className="text-lg font-semibold text-[#1C1916] mb-2" style={{ fontFamily: "'Georgia', serif" }}>
+                  Reset Your Password
+                </h3>
+                <p className="text-xs text-[#6B6460] mb-4">
+                  Please enter your new password below. It must be at least 8 characters.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#1C1916] mb-1.5">New Password</label>
+                <input
+                  type="password"
+                  value={resetPassword}
+                  onChange={(e) => setResetPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full border border-[#E5DFD5] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A] transition-all"
+                  required
+                  disabled={resetLoading || !!resetSuccess}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#1C1916] mb-1.5">Confirm New Password</label>
+                <input
+                  type="password"
+                  value={resetConfirmPassword}
+                  onChange={(e) => setResetConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full border border-[#E5DFD5] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A] transition-all"
+                  required
+                  disabled={resetLoading || !!resetSuccess}
+                />
+              </div>
+
+              {resetError && (
+                <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-2.5">
+                  {resetError}
+                </p>
+              )}
+
+              {resetSuccess && (
+                <p className="text-xs text-green-600 bg-green-50 border border-green-200 rounded-lg p-2.5">
+                  {resetSuccess}
+                </p>
+              )}
+
+              {!resetSuccess ? (
+                <button
+                  type="submit"
+                  disabled={resetLoading || !!resetError && !resetToken}
+                  className="w-full bg-[#C8521A] text-white rounded-xl py-3 text-sm font-semibold hover:bg-[#b04817] transition-all active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-2"
+                >
+                  {resetLoading ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                      Resetting password…
+                    </>
+                  ) : (
+                    'Reset Password'
+                  )}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setView('login');
+                    setResetPassword('');
+                    setResetConfirmPassword('');
+                    setResetError('');
+                    setResetSuccess('');
+                    window.history.replaceState({}, '', '/');
+                  }}
+                  className="w-full bg-green-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-green-700 transition-all active:scale-[0.98] flex items-center justify-center"
+                >
+                  Go to Sign In
+                </button>
+              )}
+            </form>
           )}
         </div>
       </div>
