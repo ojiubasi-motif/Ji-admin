@@ -145,43 +145,45 @@ export default function Categories() {
             <p className="text-sm text-[#9A8F87]">No categories found</p>
           </div>
         ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-[#E5DFD5] bg-[#FAF8F5]">
-                <th className="text-left text-xs font-semibold text-[#6B6460] px-5 py-3">Name</th>
-                <th className="text-left text-xs font-semibold text-[#6B6460] px-5 py-3">Slug</th>
-                <th className="px-5 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(c => (
-                <tr key={c.id} className="border-b border-[#F7F3EC] last:border-0 hover:bg-[#FAF8F5] transition-colors">
-                  <td className="px-5 py-4">
-                    <span className="text-sm font-medium text-[#1C1916]">{c.name}</span>
-                  </td>
-                  <td className="px-5 py-4">
-                    <code className="text-xs bg-[#F7F3EC] text-[#6B6460] px-2 py-1 rounded-md">{c.slug}</code>
-                  </td>
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-2 justify-end">
-                      <button
-                        onClick={() => openEdit(c)}
-                        className="p-1.5 rounded-lg text-[#6B6460] hover:bg-[#F7F3EC] hover:text-[#C8521A] transition-colors"
-                      >
-                        <Pencil size={15} />
-                      </button>
-                      <button
-                        onClick={() => setDeleteId(c.id)}
-                        className="p-1.5 rounded-lg text-[#6B6460] hover:bg-red-50 hover:text-red-600 transition-colors"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[500px]">
+              <thead>
+                <tr className="border-b border-[#E5DFD5] bg-[#FAF8F5]">
+                  <th className="sticky left-0 bg-[#FAF8F5] z-10 text-left text-xs font-semibold text-[#6B6460] px-5 py-3 border-r border-[#E5DFD5]">Name</th>
+                  <th className="text-left text-xs font-semibold text-[#6B6460] px-5 py-3">Slug</th>
+                  <th className="px-5 py-3" />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.map(c => (
+                  <tr key={c.id} className="group border-b border-[#F7F3EC] last:border-0 hover:bg-[#FAF8F5] transition-colors">
+                    <td className="sticky left-0 bg-white z-10 group-hover:bg-[#FAF8F5] transition-colors px-5 py-4 border-r border-[#E5DFD5]">
+                      <span className="text-sm font-medium text-[#1C1916]">{c.name}</span>
+                    </td>
+                    <td className="px-5 py-4">
+                      <code className="text-xs bg-[#F7F3EC] text-[#6B6460] px-2 py-1 rounded-md">{c.slug}</code>
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2 justify-end">
+                        <button
+                          onClick={() => openEdit(c)}
+                          className="p-1.5 rounded-lg text-[#6B6460] hover:bg-[#F7F3EC] hover:text-[#C8521A] transition-colors"
+                        >
+                          <Pencil size={15} />
+                        </button>
+                        <button
+                          onClick={() => setDeleteId(c.id)}
+                          className="p-1.5 rounded-lg text-[#6B6460] hover:bg-red-50 hover:text-red-600 transition-colors"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

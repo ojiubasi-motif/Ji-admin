@@ -411,7 +411,7 @@ export default function Fabrics() {
             <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-[#E5DFD5] bg-[#FAF8F5]">
-                  <th className="text-left text-xs font-semibold text-[#6B6460] px-5 py-3">Fabric</th>
+                  <th className="sticky left-0 bg-[#FAF8F5] z-10 text-left text-xs font-semibold text-[#6B6460] px-5 py-3 border-r border-[#E5DFD5]">Fabric</th>
                   <th className="text-left text-xs font-semibold text-[#6B6460] px-5 py-3">Unit</th>
                   <th className="text-left text-xs font-semibold text-[#6B6460] px-5 py-3">Price Modifier</th>
                   <th className="text-left text-xs font-semibold text-[#6B6460] px-5 py-3">Stock</th>
@@ -421,8 +421,8 @@ export default function Fabrics() {
               </thead>
               <tbody>
                 {filtered.map(f => (
-                  <tr key={f.id} className="border-b border-[#F7F3EC] last:border-0 hover:bg-[#FAF8F5] transition-colors">
-                    <td className="px-5 py-4">
+                  <tr key={f.id} className="group border-b border-[#F7F3EC] last:border-0 hover:bg-[#FAF8F5] transition-colors">
+                    <td className="sticky left-0 bg-white z-10 group-hover:bg-[#FAF8F5] transition-colors px-5 py-4 border-r border-[#E5DFD5]">
                       <div className="flex items-center gap-3">
                         <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-[#E5DFD5] flex-shrink-0 bg-[#F7F3EC]">
                           <img src={f.image_url} alt={f.color_name} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />

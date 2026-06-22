@@ -416,7 +416,7 @@ export default function Products() {
             <table className="w-full min-w-[700px]">
               <thead>
                 <tr className="border-b border-[#E5DFD5] bg-[#FAF8F5]">
-                  <th className="text-left text-xs font-semibold text-[#6B6460] px-5 py-3">Product</th>
+                  <th className="sticky left-0 bg-[#FAF8F5] z-10 text-left text-xs font-semibold text-[#6B6460] px-5 py-3 border-r border-[#E5DFD5]">Product</th>
                   <th className="text-left text-xs font-semibold text-[#6B6460] px-5 py-3">Price</th>
                   <th className="text-left text-xs font-semibold text-[#6B6460] px-5 py-3">Gender</th>
                   <th className="text-left text-xs font-semibold text-[#6B6460] px-5 py-3">Occasion</th>
@@ -427,8 +427,8 @@ export default function Products() {
               </thead>
               <tbody>
                 {products.map(p => (
-                  <tr key={p.id} className="border-b border-[#F7F3EC] last:border-0 hover:bg-[#FAF8F5] transition-colors">
-                    <td className="px-5 py-4">
+                  <tr key={p.id} className="group border-b border-[#F7F3EC] last:border-0 hover:bg-[#FAF8F5] transition-colors">
+                    <td className="sticky left-0 bg-white z-10 group-hover:bg-[#FAF8F5] transition-colors px-5 py-4 border-r border-[#E5DFD5]">
                       <button onClick={() => handleOpenView(p)} className="text-left">
                         <p className="text-sm font-medium text-[#1C1916] hover:text-[#C8521A] transition-colors">{p.name}</p>
                         <p className="text-xs text-[#9A8F87] mt-0.5">{(p.categories || []).map(c => c.name).join(', ') || 'No categories'}</p>
