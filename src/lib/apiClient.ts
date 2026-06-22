@@ -87,10 +87,7 @@ export async function fetchApi(
 
   // Inject CSRF token if this is a state-changing auth request
   const isAuthPost = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(options.method?.toUpperCase() || '') &&
-    (endpoint.startsWith('/auth/login') ||
-     endpoint.startsWith('/auth/register') ||
-     endpoint.startsWith('/auth/forgot-password') ||
-     endpoint.startsWith('/auth/admin/verify-otp'));
+    endpoint.startsWith('/auth/');
 
   if (isAuthPost) {
     try {

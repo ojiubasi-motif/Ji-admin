@@ -51,7 +51,7 @@ export interface Product {
   fabrics?: Fabric[];
 }
 
-export type Page = 'dashboard' | 'products' | 'fabrics' | 'categories';
+export type Page = 'dashboard' | 'products' | 'fabrics' | 'categories' | 'profile' | 'orders';
 
 export const GENDER_OPTIONS = ['men', 'women', 'unisex', 'kids'] as const;
 export const OCCASION_OPTIONS = [

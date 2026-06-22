@@ -4,6 +4,8 @@ import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
 import Fabrics from './pages/Fabrics';
 import Categories from './pages/Categories';
+import Profile from './pages/Profile';
+import Orders from './pages/Orders';
 import type { Page } from './types';
 import { tokenStore } from './lib/tokenStore';
 import { fetchApi } from './lib/apiClient';
@@ -13,6 +15,7 @@ export default function App() {
   const [page, setPage] = useState<Page>('dashboard');
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   // Form states
   const [email, setEmail] = useState('');
@@ -42,8 +45,16 @@ export default function App() {
         const res = await fetchApi('/auth/me');
         if (res?.user?.role === 'ADMIN') {
           setIsAuthenticated(true);
+          const cached = tokenStore.getCachedUser();
+          const userObj = { ...res.user };
+          if (cached && cached.id === userObj.id) {
+            userObj.firstName = cached.firstName || userObj.firstName;
+            userObj.lastName = cached.lastName || userObj.lastName;
+          }
+          setCurrentUser(userObj);
         } else {
           tokenStore.clear();
+          setCurrentUser(null);
         }
       } catch (e) {
         // Silent refresh failed
@@ -90,6 +101,14 @@ export default function App() {
       }
 
       tokenStore.setToken(res.access_token);
+      if (res.user) {
+        tokenStore.setCachedUser({
+          id: res.user.id,
+          firstName: res.user.firstName,
+          lastName: res.user.lastName,
+        });
+        setCurrentUser(res.user);
+      }
       setIsAuthenticated(true);
     } catch (err: any) {
       setLoginError(err.message || 'Wrong email or password.');
@@ -120,6 +139,14 @@ export default function App() {
       }
 
       tokenStore.setToken(res.access_token);
+      if (res.user) {
+        tokenStore.setCachedUser({
+          id: res.user.id,
+          firstName: res.user.firstName,
+          lastName: res.user.lastName,
+        });
+        setCurrentUser(res.user);
+      }
       setIsAuthenticated(true);
       setView('login');
       setTempToken('');
@@ -139,6 +166,7 @@ export default function App() {
     } finally {
       tokenStore.clear();
       setIsAuthenticated(false);
+      setCurrentUser(null);
     }
   };
 
@@ -382,19 +410,20 @@ export default function App() {
     products: <Products />,
     fabrics: <Fabrics />,
     categories: <Categories />,
+    profile: <Profile user={currentUser} onUpdateUser={(updated) => {
+      setCurrentUser(updated);
+      tokenStore.setCachedUser({
+        id: updated.id,
+        firstName: updated.firstName,
+        lastName: updated.lastName,
+      });
+    }} />,
+    orders: <Orders />,
   }[page];
 
   return (
-    <Layout current={page} onNavigate={setPage}>
-      <div className="relative h-full flex flex-col">
-        <div className="absolute top-[-52px] right-0 flex items-center gap-3 z-50">
-          <button
-            onClick={handleLogout}
-            className="text-xs text-[#6B6460] hover:text-[#C8521A] font-semibold border border-[#E5DFD5] rounded-lg px-3 py-1.5 bg-white hover:bg-[#FAF8F5] transition-colors"
-          >
-            Sign Out
-          </button>
-        </div>
+    <Layout current={page} onNavigate={setPage} user={currentUser} onLogout={handleLogout}>
+      <div className="h-full flex flex-col">
         <div className="flex-1">
           {content}
         </div>
