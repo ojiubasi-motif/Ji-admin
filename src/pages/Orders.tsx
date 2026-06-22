@@ -23,7 +23,7 @@ interface Order {
   userId: string;
   totalAmount: number;
   currency: string;
-  status: 'PENDING' | 'CONFIRMED' | 'IN_PRODUCTION' | 'COMPLETED' | 'CANCELLED';
+  status: 'PENDING' | 'CONFIRMED' | 'IN_PRODUCTION' | 'READY' | 'DISPATCHED' | 'DELIVERED' | 'CANCELLED';
   notes: string | null;
   createdAt: string;
   updatedAt: string;
@@ -134,7 +134,11 @@ export default function Orders() {
         return 'bg-blue-50 text-blue-700 border-blue-200';
       case 'IN_PRODUCTION':
         return 'bg-indigo-50 text-indigo-700 border-indigo-200';
-      case 'COMPLETED':
+      case 'READY':
+        return 'bg-purple-50 text-purple-700 border-purple-200';
+      case 'DISPATCHED':
+        return 'bg-sky-50 text-sky-700 border-sky-200';
+      case 'DELIVERED':
         return 'bg-green-50 text-green-700 border-green-200';
       case 'CANCELLED':
         return 'bg-red-50 text-red-700 border-red-200';
@@ -278,11 +282,13 @@ export default function Orders() {
                             onChange={(e) => handleStatusChange(o.id, e.target.value as Order['status'])}
                             className="text-xs border border-[#E5DFD5] rounded-lg px-2.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-[#C8521A] disabled:opacity-55 cursor-pointer shrink-0 font-medium"
                           >
-                            <option value="PENDING">Pending</option>
-                            <option value="CONFIRMED">Confirmed</option>
-                            <option value="IN_PRODUCTION">In Production</option>
-                            <option value="COMPLETED">Completed</option>
-                            <option value="CANCELLED">Cancelled</option>
+                             <option value="PENDING">Pending</option>
+                             <option value="CONFIRMED">Confirmed</option>
+                             <option value="IN_PRODUCTION">In Production</option>
+                             <option value="READY">Ready</option>
+                             <option value="DISPATCHED">Dispatched</option>
+                             <option value="DELIVERED">Delivered</option>
+                             <option value="CANCELLED">Cancelled</option>
                           </select>
                           <button
                             onClick={() => setSelectedOrder(o)}
