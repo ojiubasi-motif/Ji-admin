@@ -47,9 +47,16 @@ interface Order {
     createdAt: string;
   }[];
   items?: OrderItem[];
+  tailor?: {
+    id: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+  } | null;
+  tailorId?: string | null;
 }
 
-export default function Orders() {
+export default function Orders({ userRole }: { userRole?: 'ADMIN' | 'TAILOR' }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -73,9 +80,44 @@ export default function Orders() {
     }
   }
 
+  const [tailors, setTailors] = useState<{ id: string; email: string; firstName: string | null; lastName: string | null }[]>([]);
+
+  async function loadTailors() {
+    try {
+      const res = await fetchApi('/auth/tailors');
+      if (res?.data) {
+        setTailors(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to load tailors:', err);
+    }
+  }
+
+  async function handleAssignTailor(orderId: string, tailorId: string | null) {
+    setUpdatingId(orderId);
+    setActionError('');
+    try {
+      const order = orders.find(o => o.id === orderId);
+      if (!order) return;
+
+      await fetchApi(`/orders/${orderId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: order.status, tailorId }),
+      });
+      await loadOrders();
+    } catch (err: any) {
+      setActionError(err.message || 'Failed to assign tailor.');
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
   useEffect(() => {
     loadOrders();
-  }, []);
+    if (userRole === 'ADMIN') {
+      loadTailors();
+    }
+  }, [userRole]);
 
   async function handleStatusChange(orderId: string, newStatus: Order['status']) {
     setUpdatingId(orderId);
@@ -222,6 +264,7 @@ export default function Orders() {
                   <th className="text-left text-xs font-semibold text-[#6B6460] px-5 py-3">Items Ordered</th>
                   <th className="text-left text-xs font-semibold text-[#6B6460] px-5 py-3">Amount</th>
                   <th className="text-left text-xs font-semibold text-[#6B6460] px-5 py-3">Status</th>
+                  {userRole === 'ADMIN' && <th className="text-left text-xs font-semibold text-[#6B6460] px-5 py-3">Assigned Tailor</th>}
                   <th className="px-5 py-3" />
                 </tr>
               </thead>
@@ -274,21 +317,38 @@ export default function Orders() {
                           {o.status.replace('_', ' ')}
                         </span>
                       </td>
+                      {userRole === 'ADMIN' && (
+                        <td className="px-5 py-4">
+                          <select
+                            disabled={updatingId === o.id}
+                            value={o.tailorId || ''}
+                            onChange={(e) => handleAssignTailor(o.id, e.target.value || null)}
+                            className="text-xs border border-[#E5DFD5] rounded-lg px-2.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-[#C8521A] disabled:opacity-55 cursor-pointer shrink-0 font-medium"
+                          >
+                            <option value="">Unassigned</option>
+                            {tailors.map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.firstName ? `${t.firstName} ${t.lastName || ''}`.trim() : t.email}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                      )}
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3 justify-end">
                           <select
-                            disabled={updatingId === o.id}
+                            disabled={updatingId === o.id || (userRole === 'TAILOR' && ['READY', 'DISPATCHED', 'DELIVERED', 'CANCELLED'].includes(o.status))}
                             value={o.status}
                             onChange={(e) => handleStatusChange(o.id, e.target.value as Order['status'])}
                             className="text-xs border border-[#E5DFD5] rounded-lg px-2.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-[#C8521A] disabled:opacity-55 cursor-pointer shrink-0 font-medium"
                           >
-                             <option value="PENDING">Pending</option>
-                             <option value="CONFIRMED">Confirmed</option>
+                             {(userRole !== 'TAILOR' || o.status === 'PENDING') && <option value="PENDING">Pending</option>}
+                             {(userRole !== 'TAILOR' || o.status === 'CONFIRMED') && <option value="CONFIRMED">Confirmed</option>}
                              <option value="IN_PRODUCTION">In Production</option>
                              <option value="READY">Ready</option>
-                             <option value="DISPATCHED">Dispatched</option>
-                             <option value="DELIVERED">Delivered</option>
-                             <option value="CANCELLED">Cancelled</option>
+                             {(userRole !== 'TAILOR' || o.status === 'DISPATCHED') && <option value="DISPATCHED">Dispatched</option>}
+                             {(userRole !== 'TAILOR' || o.status === 'DELIVERED') && <option value="DELIVERED">Delivered</option>}
+                             {(userRole !== 'TAILOR' || o.status === 'CANCELLED') && <option value="CANCELLED">Cancelled</option>}
                           </select>
                           <button
                             onClick={() => setSelectedOrder(o)}

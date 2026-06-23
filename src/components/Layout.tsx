@@ -21,13 +21,6 @@ interface LayoutProps {
   onLogout: () => void;
 }
 
-const navItems: { page: Page; label: string; icon: React.ReactNode }[] = [
-  { page: 'dashboard', label: 'Overview', icon: <LayoutDashboard size={18} /> },
-  { page: 'products', label: 'Products', icon: <Package size={18} /> },
-  { page: 'fabrics', label: 'Fabrics', icon: <Scissors size={18} /> },
-  { page: 'categories', label: 'Categories', icon: <Tag size={18} /> },
-];
-
 export default function Layout({ current, onNavigate, children, user, onLogout }: LayoutProps) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -50,6 +43,16 @@ export default function Layout({ current, onNavigate, children, user, onLogout }
   const displayName = user
     ? (user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.email.split('@')[0])
     : 'Admin';
+
+  const items = user?.role === 'TAILOR'
+    ? [{ page: 'orders' as Page, label: 'Orders', icon: <ClipboardList size={18} /> }]
+    : [
+        { page: 'dashboard' as Page, label: 'Overview', icon: <LayoutDashboard size={18} /> },
+        { page: 'orders' as Page, label: 'Orders', icon: <ClipboardList size={18} /> },
+        { page: 'products' as Page, label: 'Products', icon: <Package size={18} /> },
+        { page: 'fabrics' as Page, label: 'Fabrics', icon: <Scissors size={18} /> },
+        { page: 'categories' as Page, label: 'Categories', icon: <Tag size={18} /> },
+      ];
 
   return (
     <div className="flex h-screen bg-[#F7F3EC] overflow-hidden">
@@ -74,7 +77,7 @@ export default function Layout({ current, onNavigate, children, user, onLogout }
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-6 space-y-1">
-          {navItems.map(({ page, label, icon }) => (
+          {items.map(({ page, label, icon }) => (
             <button
               key={page}
               onClick={() => {

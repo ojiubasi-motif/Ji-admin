@@ -65,7 +65,7 @@ export default function App() {
       try {
         // Triggers ensureToken() which does silent refresh
         const res = await fetchApi('/auth/me');
-        if (res?.user?.role === 'ADMIN') {
+        if (res?.user?.role === 'ADMIN' || res?.user?.role === 'TAILOR') {
           setIsAuthenticated(true);
           const cached = tokenStore.getCachedUser();
           const userObj = { ...res.user };
@@ -74,6 +74,9 @@ export default function App() {
             userObj.lastName = cached.lastName || userObj.lastName;
           }
           setCurrentUser(userObj);
+          if (userObj.role === 'TAILOR') {
+            setPage('orders');
+          }
         } else {
           tokenStore.clear();
           setCurrentUser(null);
@@ -116,8 +119,8 @@ export default function App() {
         return;
       }
 
-      if (res.user?.role !== 'ADMIN') {
-        setLoginError('Access Denied: Only administrators can log in to this panel.');
+      if (res.user?.role !== 'ADMIN' && res.user?.role !== 'TAILOR') {
+        setLoginError('Access Denied: Only administrators and tailors can log in to this panel.');
         tokenStore.clear();
         return;
       }
@@ -130,6 +133,9 @@ export default function App() {
           lastName: res.user.lastName,
         });
         setCurrentUser(res.user);
+        if (res.user.role === 'TAILOR') {
+          setPage('orders');
+        }
       }
       setIsAuthenticated(true);
     } catch (err: any) {
@@ -154,8 +160,8 @@ export default function App() {
         skipAuth: true,
       });
 
-      if (res.user?.role !== 'ADMIN') {
-        setOtpError('Access Denied: Only administrators can log in to this panel.');
+      if (res.user?.role !== 'ADMIN' && res.user?.role !== 'TAILOR') {
+        setOtpError('Access Denied: Only administrators and tailors can log in to this panel.');
         tokenStore.clear();
         return;
       }
@@ -168,6 +174,9 @@ export default function App() {
           lastName: res.user.lastName,
         });
         setCurrentUser(res.user);
+        if (res.user.role === 'TAILOR') {
+          setPage('orders');
+        }
       }
       setIsAuthenticated(true);
       setView('login');
@@ -585,7 +594,7 @@ export default function App() {
         lastName: updated.lastName,
       });
     }} />,
-    orders: <Orders />,
+    orders: <Orders userRole={currentUser?.role} />,
   }[page];
 
   return (
