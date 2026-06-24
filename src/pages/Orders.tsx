@@ -70,8 +70,8 @@ export default function Orders({ userRole }: { userRole?: 'ADMIN' | 'TAILOR' }) 
     try {
       // Fetch up to 100 orders at once for management view
       const res = await fetchApi('/orders?take=100');
-      if (res?.data?.items) {
-        setOrders(res.data.items);
+      if (res?.items) {
+        setOrders(res.items);
       }
     } catch (err) {
       console.error('Failed to load orders:', err);
@@ -85,8 +85,8 @@ export default function Orders({ userRole }: { userRole?: 'ADMIN' | 'TAILOR' }) 
   async function loadTailors() {
     try {
       const res = await fetchApi('/auth/tailors');
-      if (res?.data) {
-        setTailors(res.data);
+      if (res) {
+        setTailors(res);
       }
     } catch (err) {
       console.error('Failed to load tailors:', err);
@@ -132,7 +132,7 @@ export default function Orders({ userRole }: { userRole?: 'ADMIN' | 'TAILOR' }) 
       // If modal is open, update selected order state to show fresh status history
       if (selectedOrder && selectedOrder.id === orderId) {
         const freshRes = await fetchApi('/orders?take=100');
-        const freshOrder = freshRes?.data?.items?.find((o: Order) => o.id === orderId);
+        const freshOrder = freshRes?.items?.find((o: Order) => o.id === orderId);
         if (freshOrder) setSelectedOrder(freshOrder);
       }
     } catch (err: any) {

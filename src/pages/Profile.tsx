@@ -43,8 +43,8 @@ export default function Profile({ user, onUpdateUser }: ProfileProps) {
         }),
       });
 
-      if (res?.data?.user) {
-        onUpdateUser(res.data.user);
+      if (res?.user) {
+        onUpdateUser(res.user);
         setSuccess(true);
       } else {
         throw new Error('Failed to update profile details.');
