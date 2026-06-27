@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2, Package, Search, ChevronRight, ChevronLeft, X, ToggleLeft, ToggleRight } from 'lucide-react';
 import { fetchApi } from '../lib/apiClient';
-import type { Product, Category, Fabric, StyleOption } from '../types';
+import type { Product, Category, Fabric, FabricCategory, StyleOption } from '../types';
 import { GENDER_OPTIONS, OCCASION_OPTIONS } from '../types';
 import Modal from '../components/Modal';
 
@@ -63,6 +63,8 @@ export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
   const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [allFabrics, setAllFabrics] = useState<Fabric[]>([]);
+  const [fabricCategories, setFabricCategories] = useState<FabricCategory[]>([]);
+  const [selectedFabricCategoryFilter, setSelectedFabricCategoryFilter] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -145,10 +147,11 @@ export default function Products() {
   async function load() {
     setLoading(true);
     try {
-      const [prodsRes, catsRes, fabsRes] = await Promise.all([
+      const [prodsRes, catsRes, fabsRes, fabCatsRes] = await Promise.all([
         fetchApi(`/v1/products?isActive=all&page=${currentPage}&limit=10&search=${encodeURIComponent(debouncedSearch)}`),
         fetchApi('/v1/categories'),
         fetchApi('/v1/fabrics'),
+        fetchApi('/v1/fabric-categories'),
       ]);
 
       const docs = prodsRes?.docs || [];
@@ -163,6 +166,7 @@ export default function Products() {
         slug: c.slug,
       }));
       setAllCategories(mappedCats);
+      setFabricCategories(fabCatsRes || []);
 
       const flatFabs: Fabric[] = [];
       (fabsRes || []).forEach((f: any) => {
@@ -178,6 +182,8 @@ export default function Products() {
             in_stock: p.inStock,
             stock_level: p.stockLevel !== undefined ? p.stockLevel : null,
             is_active: p.isActive,
+            fabric_category_id: f.category?._id || f.category || '',
+            fabric_category_name: f.category?.name || '',
           } as any);
         });
       });
@@ -564,22 +570,38 @@ export default function Products() {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-[#1C1916] mb-2">Fabrics <span className="text-[#9A8F87] font-normal">({form.selectedFabrics.length} selected)</span></label>
+                
+                <div className="mb-3">
+                  <select
+                    value={selectedFabricCategoryFilter}
+                    onChange={e => setSelectedFabricCategoryFilter(e.target.value)}
+                    className="w-full border border-[#E5DFD5] rounded-xl px-4 py-2.5 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]"
+                  >
+                    <option value="">All Fabric Categories</option>
+                    {fabricCategories.map(fc => (
+                      <option key={fc.id || (fc as any)._id} value={fc.id || (fc as any)._id}>{fc.name}</option>
+                    ))}
+                  </select>
+                </div>
+
                 {allFabrics.length === 0 ? (
                   <p className="text-sm text-amber-700 bg-amber-50 px-4 py-3 rounded-xl">No fabrics found. Please create fabrics first.</p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-                    {allFabrics.map(f => {
-                      const sel = form.selectedFabrics.includes(f.id);
-                      return (
-                        <button key={f.id} onClick={() => toggleFab(f.id)} className={`flex items-center gap-3 py-2.5 px-3 rounded-xl text-sm border transition-all text-left ${sel ? 'bg-[#F7F3EC] border-[#C8521A]' : 'border-[#E5DFD5] hover:border-[#C8521A]'}`}>
-                          <div className="w-6 h-6 rounded-md flex-shrink-0 border border-[#E5DFD5] bg-[#F7F3EC] overflow-hidden">
-                            <img src={f.image_url} alt="" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                          </div>
-                          <span className={`text-xs font-medium truncate ${sel ? 'text-[#C8521A]' : 'text-[#6B6460]'}`}>{f.color_name}</span>
-                          {f.color_code && <span className="w-3 h-3 rounded-full flex-shrink-0 ml-auto" style={{ backgroundColor: f.color_code }} />}
-                        </button>
-                      );
-                    })}
+                    {allFabrics
+                      .filter(f => !selectedFabricCategoryFilter || f.fabric_category_id === selectedFabricCategoryFilter)
+                      .map(f => {
+                        const sel = form.selectedFabrics.includes(f.id);
+                        return (
+                          <button key={f.id} onClick={() => toggleFab(f.id)} className={`flex items-center gap-3 py-2.5 px-3 rounded-xl text-sm border transition-all text-left ${sel ? 'bg-[#F7F3EC] border-[#C8521A]' : 'border-[#E5DFD5] hover:border-[#C8521A]'}`}>
+                            <div className="w-6 h-6 rounded-md flex-shrink-0 border border-[#E5DFD5] bg-[#F7F3EC] overflow-hidden">
+                              <img src={f.image_url} alt="" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                            </div>
+                            <span className={`text-xs font-medium truncate ${sel ? 'text-[#C8521A]' : 'text-[#6B6460]'}`}>{f.color_name}</span>
+                            {f.color_code && <span className="w-3 h-3 rounded-full flex-shrink-0 ml-auto" style={{ backgroundColor: f.color_code }} />}
+                          </button>
+                        );
+                      })}
                   </div>
                 )}
               </div>

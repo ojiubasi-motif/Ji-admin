@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2, Scissors, Search, ToggleLeft, ToggleRight, Upload, X } from 'lucide-react';
 import { fetchApi } from '../lib/apiClient';
-import type { Fabric } from '../types';
+import type { Fabric, FabricCategory } from '../types';
 import { UNIT_OPTIONS } from '../types';
 import Modal from '../components/Modal';
 
-type FabricForm = Omit<Fabric, 'id' | 'created_at' | 'updated_at'>;
+type FabricForm = Omit<Fabric, 'id' | 'created_at' | 'updated_at' | 'fabric_category_id' | 'fabric_category_name'> & {
+  fabric_category_id?: string;
+  fabric_category_name?: string;
+};
 
 const emptyForm: FabricForm = {
   color_name: '',
@@ -17,6 +20,8 @@ const emptyForm: FabricForm = {
   in_stock: true,
   stock_level: null,
   is_active: true,
+  fabric_category_id: '',
+  fabric_category_name: '',
 };
 
 interface FabricPropertyInput {
@@ -35,6 +40,7 @@ interface FabricPropertyInput {
 interface FabricCreateForm {
   name: string;
   description: string;
+  categoryId: string;
   properties: FabricPropertyInput[];
 }
 
@@ -53,11 +59,18 @@ const defaultProperty = (): FabricPropertyInput => ({
 const defaultCreateForm = (): FabricCreateForm => ({
   name: '',
   description: '',
+  categoryId: '',
   properties: [defaultProperty()],
 });
 
 export default function Fabrics() {
   const [fabrics, setFabrics] = useState<Fabric[]>([]);
+  const [categories, setCategories] = useState<FabricCategory[]>([]);
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('');
+  const [createCatModal, setCreateCatModal] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatError, setNewCatError] = useState('');
+  const [newCatSaving, setNewCatSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState<'create' | 'edit' | null>(null);
@@ -76,7 +89,11 @@ export default function Fabrics() {
   async function load() {
     setLoading(true);
     try {
-      const res = await fetchApi('/v1/fabrics');
+      const [res, catsRes] = await Promise.all([
+        fetchApi('/v1/fabrics'),
+        fetchApi('/v1/fabric-categories')
+      ]);
+      setCategories(catsRes || []);
       const flat: Fabric[] = [];
       (res || []).forEach((f: any) => {
         (f.properties || []).forEach((p: any, idx: number) => {
@@ -91,6 +108,8 @@ export default function Fabrics() {
             in_stock: p.inStock,
             stock_level: p.stockLevel !== undefined ? p.stockLevel : null,
             is_active: p.isActive,
+            fabric_category_id: f.category?._id || f.category || '',
+            fabric_category_name: f.category?.name || '',
             created_at: f.createdAt || new Date().toISOString(),
             updated_at: f.updatedAt || new Date().toISOString(),
           } as any);
@@ -125,6 +144,8 @@ export default function Fabrics() {
       in_stock: f.in_stock,
       stock_level: f.stock_level,
       is_active: f.is_active,
+      fabric_category_id: f.fabric_category_id || '',
+      fabric_category_name: f.fabric_category_name || '',
     });
     setError('');
     setModal('edit');
@@ -236,6 +257,7 @@ export default function Fabrics() {
     try {
       if (modal === 'create') {
         if (!createForm.name.trim()) { setError('Fabric name is required'); return; }
+        if (!createForm.categoryId) { setError('Fabric category is required'); return; }
         if (createForm.properties.length === 0) { setError('At least one property/variant is required'); return; }
 
         for (let i = 0; i < createForm.properties.length; i++) {
@@ -252,6 +274,7 @@ export default function Fabrics() {
         const payload = {
           name: createForm.name.trim(),
           description: createForm.description.trim() || undefined,
+          categoryId: createForm.categoryId,
           properties: createForm.properties.map(p => ({
             colorName: p.colorName.trim(),
             colorCode: p.colorCode || undefined,
@@ -271,6 +294,7 @@ export default function Fabrics() {
         });
       } else if (editing) {
         if (!form.color_name.trim()) { setError('Color name is required'); return; }
+        if (!form.fabric_category_id) { setError('Fabric category is required'); return; }
         if (!form.image_url.trim()) { setError('Image file must be uploaded first'); return; }
         if (form.color_code && !/^#[0-9A-Fa-f]{6}$/.test(form.color_code)) {
           setError('Color code must be a valid hex e.g. #4169E1');
@@ -300,6 +324,7 @@ export default function Fabrics() {
 
         const payload = {
           name: form.color_name.includes('—') ? form.color_name.split('—')[0].trim() : parentDoc.name,
+          categoryId: form.fabric_category_id,
           properties: updatedProperties,
         };
 
@@ -367,9 +392,11 @@ export default function Fabrics() {
     }
   }
 
-  const filtered = fabrics.filter(f =>
-    f.color_name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = fabrics.filter(f => {
+    const matchSearch = f.color_name.toLowerCase().includes(search.toLowerCase());
+    const matchCategory = !selectedCategoryFilter || f.fabric_category_id === selectedCategoryFilter;
+    return matchSearch && matchCategory;
+  });
 
   return (
     <div className="space-y-5">
@@ -387,15 +414,27 @@ export default function Fabrics() {
         </button>
       </div>
 
-      <div className="relative">
-        <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9A8F87]" />
-        <input
-          type="text"
-          placeholder="Search fabrics…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#E5DFD5] rounded-xl text-sm text-[#1C1916] placeholder-[#9A8F87] focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]"
-        />
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9A8F87]" />
+          <input
+            type="text"
+            placeholder="Search fabrics…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#E5DFD5] rounded-xl text-sm text-[#1C1916] placeholder-[#9A8F87] focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]"
+          />
+        </div>
+        <select
+          value={selectedCategoryFilter}
+          onChange={e => setSelectedCategoryFilter(e.target.value)}
+          className="border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm bg-white text-[#1C1916] focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A] w-full sm:w-48"
+        >
+          <option value="">All Categories</option>
+          {categories.map(c => (
+            <option key={c.id || (c as any)._id} value={c.id || (c as any)._id}>{c.name}</option>
+          ))}
+        </select>
       </div>
 
       <div className="bg-white rounded-2xl border border-[#E5DFD5] overflow-hidden">
@@ -412,6 +451,7 @@ export default function Fabrics() {
               <thead>
                 <tr className="border-b border-[#E5DFD5] bg-[#FAF8F5]">
                   <th className="sticky left-0 bg-[#FAF8F5] z-10 text-left text-xs font-semibold text-[#6B6460] px-5 py-3 border-r border-[#E5DFD5]">Fabric</th>
+                  <th className="text-left text-xs font-semibold text-[#6B6460] px-5 py-3">Category</th>
                   <th className="text-left text-xs font-semibold text-[#6B6460] px-5 py-3">Unit</th>
                   <th className="text-left text-xs font-semibold text-[#6B6460] px-5 py-3">Price Modifier</th>
                   <th className="text-left text-xs font-semibold text-[#6B6460] px-5 py-3">Stock</th>
@@ -435,6 +475,11 @@ export default function Fabrics() {
                           {f.color_code && <p className="text-xs text-[#9A8F87]">{f.color_code}</p>}
                         </div>
                       </div>
+                    </td>
+                    <td className="px-5 py-4 text-sm text-[#1C1916]">
+                      <span className="text-xs bg-[#F7F3EC] text-[#6B6460] px-2 py-1 rounded-md font-medium">
+                        {f.fabric_category_name || '—'}
+                      </span>
                     </td>
                     <td className="px-5 py-4">
                       <span className="text-xs bg-[#F7F3EC] text-[#6B6460] px-2 py-1 rounded-md">{f.unit}</span>
@@ -482,6 +527,28 @@ export default function Fabrics() {
               <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-[#1C1916] mb-1.5 font-bold">Fabric Name <span className="text-[#C8521A]">*</span></label>
                 <input type="text" value={createForm.name} onChange={e => updateCreateField('name', e.target.value)} placeholder="e.g. Premium Silk Aso-oke" className="w-full border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]" />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-[#1C1916] mb-1.5 font-bold">Fabric Category <span className="text-[#C8521A]">*</span></label>
+                <div className="flex gap-2">
+                  <select
+                    value={createForm.categoryId}
+                    onChange={e => updateCreateField('categoryId', e.target.value)}
+                    className="flex-1 border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]"
+                  >
+                    <option value="">Select a category</option>
+                    {categories.map(c => (
+                      <option key={c.id || (c as any)._id} value={c.id || (c as any)._id}>{c.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setCreateCatModal(true)}
+                    className="border border-[#E5DFD5] hover:border-[#C8521A] text-[#1C1916] rounded-xl px-4 py-2.5 text-sm font-semibold cursor-pointer transition-colors shrink-0"
+                  >
+                    New Category
+                  </button>
+                </div>
               </div>
               <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-[#1C1916] mb-1.5">Fabric Description</label>
@@ -621,6 +688,19 @@ export default function Fabrics() {
         <Modal title="Edit Fabric" onClose={() => setModal(null)} size="lg">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-[#1C1916] mb-1.5 font-bold">Fabric Category <span className="text-[#C8521A]">*</span></label>
+              <select
+                value={form.fabric_category_id}
+                onChange={e => setField('fabric_category_id', e.target.value)}
+                className="w-full border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]"
+              >
+                <option value="">Select a category</option>
+                {categories.map(c => (
+                  <option key={c.id || (c as any)._id} value={c.id || (c as any)._id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="sm:col-span-2">
               <label className="block text-xs font-semibold text-[#1C1916] mb-1.5">Color Name <span className="text-[#C8521A]">*</span></label>
               <input type="text" value={form.color_name} onChange={e => setField('color_name', e.target.value)} placeholder="e.g. Standard Aso-oke — Royal Blue" className="w-full border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]" />
             </div>
@@ -738,6 +818,64 @@ export default function Fabrics() {
             <div className="flex gap-3">
               <button onClick={() => setDeleteId(null)} className="flex-1 border border-[#E5DFD5] text-[#6B6460] rounded-xl py-2.5 text-sm font-medium hover:bg-[#F7F3EC] transition-colors">Cancel</button>
               <button onClick={handleDelete} className="flex-1 bg-red-600 text-white rounded-xl py-2.5 text-sm font-medium hover:bg-red-700 transition-colors">Delete</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {createCatModal && (
+        <Modal title="New Fabric Category" onClose={() => setCreateCatModal(false)} size="sm">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-[#1C1916] mb-1.5 font-bold">Category Name <span className="text-[#C8521A]">*</span></label>
+              <input
+                type="text"
+                value={newCatName}
+                onChange={e => setNewCatName(e.target.value)}
+                placeholder="e.g. Linen"
+                className="w-full border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]"
+              />
+            </div>
+            {newCatError && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-2.5">{newCatError}</p>}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setCreateCatModal(false)}
+                className="flex-1 border border-[#E5DFD5] text-[#6B6460] rounded-xl py-2.5 text-sm font-medium hover:bg-[#F7F3EC] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!newCatName.trim()) { setNewCatError('Category name is required'); return; }
+                  setNewCatSaving(true);
+                  setNewCatError('');
+                  try {
+                    const res = await fetchApi('/v1/admin/fabric-categories', {
+                      method: 'POST',
+                      body: JSON.stringify({ name: newCatName.trim() }),
+                    });
+                    if (res && res.data) {
+                      const cats = await fetchApi('/v1/fabric-categories');
+                      setCategories(cats || []);
+                      if (modal === 'create') {
+                        updateCreateField('categoryId', res.data.id || res.data._id);
+                      } else {
+                        setField('fabric_category_id', res.data.id || res.data._id);
+                      }
+                      setNewCatName('');
+                      setCreateCatModal(false);
+                    }
+                  } catch (err: any) {
+                    setNewCatError(err.message || 'Failed to create category');
+                  } finally {
+                    setNewCatSaving(false);
+                  }
+                }}
+                disabled={newCatSaving}
+                className="flex-1 bg-[#C8521A] text-white rounded-xl py-2.5 text-sm font-medium hover:bg-[#b04817] transition-colors disabled:opacity-60"
+              >
+                {newCatSaving ? 'Creating…' : 'Create'}
+              </button>
             </div>
           </div>
         </Modal>

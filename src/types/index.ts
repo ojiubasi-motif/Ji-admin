@@ -6,6 +6,15 @@ export interface Category {
   updated_at: string;
 }
 
+export interface FabricCategory {
+  id: string;
+  name: string;
+  slug: string;
+  fabrics?: string[];
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Fabric {
   id: string;
   color_name: string;
@@ -17,6 +26,8 @@ export interface Fabric {
   in_stock: boolean;
   stock_level: number | null;
   is_active: boolean;
+  fabric_category_id: string;
+  fabric_category_name: string;
   created_at: string;
   updated_at: string;
 }
