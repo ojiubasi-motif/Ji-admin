@@ -854,13 +854,13 @@ export default function Fabrics() {
                       method: 'POST',
                       body: JSON.stringify({ name: newCatName.trim() }),
                     });
-                    if (res && res.data) {
+                    if (res) {
                       const cats = await fetchApi('/v1/fabric-categories');
                       setCategories(cats || []);
                       if (modal === 'create') {
-                        updateCreateField('categoryId', res.data.id || res.data._id);
+                        updateCreateField('categoryId', res.id || res._id);
                       } else {
-                        setField('fabric_category_id', res.data.id || res.data._id);
+                        setField('fabric_category_id', res.id || res._id);
                       }
                       setNewCatName('');
                       setCreateCatModal(false);

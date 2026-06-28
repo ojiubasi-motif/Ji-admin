@@ -151,8 +151,8 @@ export async function fetchApi(
     if (cached && cached.id === result.user.id) {
       result.user = {
         ...result.user,
-        firstName: cached.firstName || result.user.firstName,
-        lastName: cached.lastName || result.user.lastName,
+        firstName: result.user.firstName !== undefined && result.user.firstName !== null ? result.user.firstName : cached.firstName,
+        lastName: result.user.lastName !== undefined && result.user.lastName !== null ? result.user.lastName : cached.lastName,
       };
     }
   }
