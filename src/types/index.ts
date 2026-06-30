@@ -17,6 +17,7 @@ export interface FabricCategory {
 
 export interface Fabric {
   id: string;
+  fabric_name: string;
   color_name: string;
   color_code: string | null;
   image_url: string;

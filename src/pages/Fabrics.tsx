@@ -5,12 +5,14 @@ import type { Fabric, FabricCategory } from '../types';
 import { UNIT_OPTIONS } from '../types';
 import Modal from '../components/Modal';
 
-type FabricForm = Omit<Fabric, 'id' | 'created_at' | 'updated_at' | 'fabric_category_id' | 'fabric_category_name'> & {
+type FabricForm = Omit<Fabric, 'id' | 'created_at' | 'updated_at' | 'fabric_category_id' | 'fabric_category_name' | 'fabric_name'> & {
   fabric_category_id?: string;
   fabric_category_name?: string;
+  fabric_name?: string;
 };
 
 const emptyForm: FabricForm = {
+  fabric_name: '',
   color_name: '',
   color_code: '',
   image_url: '',
@@ -99,7 +101,8 @@ export default function Fabrics() {
         (f.properties || []).forEach((p: any, idx: number) => {
           flat.push({
             id: `${f._id}::${idx}`,
-            color_name: f.properties.length > 1 ? `${f.name} — ${p.colorName}` : p.colorName,
+            fabric_name: f.name,
+            color_name: p.colorName,
             color_code: p.colorCode || null,
             image_url: p.imageUrl,
             unit: p.unit,
@@ -135,6 +138,7 @@ export default function Fabrics() {
   function openEdit(f: Fabric) {
     setEditing(f);
     setForm({
+      fabric_name: f.fabric_name || '',
       color_name: f.color_name,
       color_code: f.color_code || '',
       image_url: f.image_url,
@@ -309,7 +313,7 @@ export default function Fabrics() {
         const updatedProperties = [...(parentDoc.properties || [])];
 
         const newProp = {
-          colorName: form.color_name.includes('—') ? form.color_name.split('—')[1].trim() : form.color_name.trim(),
+          colorName: form.color_name.trim(),
           colorCode: form.color_code || undefined,
           imageUrl: form.image_url.trim(),
           unit: form.unit,
@@ -323,7 +327,7 @@ export default function Fabrics() {
         updatedProperties[propIdx] = newProp;
 
         const payload = {
-          name: form.color_name.includes('—') ? form.color_name.split('—')[0].trim() : parentDoc.name,
+          name: form.fabric_name?.trim() || parentDoc.name,
           categoryId: form.fabric_category_id,
           properties: updatedProperties,
         };
@@ -393,7 +397,9 @@ export default function Fabrics() {
   }
 
   const filtered = fabrics.filter(f => {
-    const matchSearch = f.color_name.toLowerCase().includes(search.toLowerCase());
+    const matchSearch =
+      (f.fabric_name || '').toLowerCase().includes(search.toLowerCase()) ||
+      (f.color_name || '').toLowerCase().includes(search.toLowerCase());
     const matchCategory = !selectedCategoryFilter || f.fabric_category_id === selectedCategoryFilter;
     return matchSearch && matchCategory;
   });
@@ -471,8 +477,8 @@ export default function Fabrics() {
                           )}
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-[#1C1916]">{f.color_name}</p>
-                          {f.color_code && <p className="text-xs text-[#9A8F87]">{f.color_code}</p>}
+                          <p className="text-sm font-medium text-[#1C1916]">{f.fabric_name}</p>
+                          <p className="text-xs text-[#9A8F87]">{f.color_name} {f.color_code ? `(${f.color_code})` : ''}</p>
                         </div>
                       </div>
                     </td>
@@ -643,19 +649,18 @@ export default function Fabrics() {
                       <select value={p.unit} onChange={e => updatePropertyField(idx, 'unit', e.target.value as Fabric['unit'])} className="w-full border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]">
                         {UNIT_OPTIONS.map(u => <option key={u} value={u}>{u}</option>)}
                       </select>
-                    </div>
-                    <div>
+                             <div>
                       <label className="block text-xs font-semibold text-[#1C1916] mb-1.5">Yards Per Unit</label>
-                      <input type="number" min="0.1" step="0.1" value={p.yardsPerUnit} onChange={e => updatePropertyField(idx, 'yardsPerUnit', Number(e.target.value))} className="w-full bg-white border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]" />
+                      <input type="number" min="0.1" step="0.1" value={p.yardsPerUnit} onChange={e => updatePropertyField(idx, 'yardsPerUnit', Number(e.target.value))} onFocus={e => e.target.select()} className="w-full bg-white border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-[#1C1916] mb-1.5">Price Modifier (₦)</label>
-                      <input type="number" min="0" value={p.priceModifier} onChange={e => updatePropertyField(idx, 'priceModifier', Number(e.target.value))} className="w-full bg-white border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]" />
+                      <input type="number" min="0" value={p.priceModifier} onChange={e => updatePropertyField(idx, 'priceModifier', Number(e.target.value))} onFocus={e => e.target.select()} className="w-full bg-white border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-[#1C1916] mb-1.5">Stock Level</label>
-                      <input type="number" min="0" value={p.stockLevel ?? ''} onChange={e => updatePropertyField(idx, 'stockLevel', e.target.value === '' ? null : Number(e.target.value))} placeholder="Leave blank if not tracked" className="w-full bg-white border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]" />
-                    </div>
+                      <input type="number" min="0" value={p.stockLevel ?? ''} onChange={e => updatePropertyField(idx, 'stockLevel', e.target.value === '' ? null : Number(e.target.value))} onFocus={e => e.target.select()} placeholder="Leave blank if not tracked" className="w-full bg-white border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]" />
+                    </div>               </div>
 
                     <div className="flex gap-4 sm:col-span-2 pt-2">
                       <label className="flex items-center gap-2.5 cursor-pointer select-none">
@@ -701,8 +706,12 @@ export default function Fabrics() {
               </select>
             </div>
             <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-[#1C1916] mb-1.5">Fabric Name <span className="text-[#C8521A]">*</span></label>
+              <input type="text" value={form.fabric_name} onChange={e => setField('fabric_name', e.target.value)} placeholder="e.g. Standard Aso-oke" className="w-full border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]" />
+            </div>
+            <div className="sm:col-span-2">
               <label className="block text-xs font-semibold text-[#1C1916] mb-1.5">Color Name <span className="text-[#C8521A]">*</span></label>
-              <input type="text" value={form.color_name} onChange={e => setField('color_name', e.target.value)} placeholder="e.g. Standard Aso-oke — Royal Blue" className="w-full border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]" />
+              <input type="text" value={form.color_name} onChange={e => setField('color_name', e.target.value)} placeholder="e.g. Royal Blue" className="w-full border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]" />
             </div>
 
             <div>
@@ -774,17 +783,17 @@ export default function Fabrics() {
 
             <div>
               <label className="block text-xs font-semibold text-[#1C1916] mb-1.5">Yards Per Unit</label>
-              <input type="number" min="0.1" step="0.1" value={form.yards_per_unit} onChange={e => setField('yards_per_unit', Number(e.target.value))} className="w-full border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]" />
+              <input type="number" min="0.1" step="0.1" value={form.yards_per_unit} onChange={e => setField('yards_per_unit', Number(e.target.value))} onFocus={e => e.target.select()} className="w-full border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]" />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-[#1C1916] mb-1.5">Price Modifier (₦)</label>
-              <input type="number" min="0" value={form.price_modifier} onChange={e => setField('price_modifier', Number(e.target.value))} className="w-full border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]" />
+              <input type="number" min="0" value={form.price_modifier} onChange={e => setField('price_modifier', Number(e.target.value))} onFocus={e => e.target.select()} className="w-full border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]" />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-[#1C1916] mb-1.5">Stock Level</label>
-              <input type="number" min="0" value={form.stock_level ?? ''} onChange={e => setField('stock_level', e.target.value === '' ? null : Number(e.target.value))} placeholder="Leave blank if not tracked" className="w-full border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]" />
+              <input type="number" min="0" value={form.stock_level ?? ''} onChange={e => setField('stock_level', e.target.value === '' ? null : Number(e.target.value))} onFocus={e => e.target.select()} placeholder="Leave blank if not tracked" className="w-full border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]" />
             </div>
 
             <div className="flex flex-col gap-3">

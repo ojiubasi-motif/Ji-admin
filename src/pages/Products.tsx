@@ -188,7 +188,8 @@ export default function Products() {
         (f.properties || []).forEach((p: any, idx: number) => {
           flatFabs.push({
             id: `${f._id}::${idx}`,
-            color_name: f.properties.length > 1 ? `${f.name} — ${p.colorName}` : p.colorName,
+            fabric_name: f.name,
+            color_name: p.colorName,
             color_code: p.colorCode || null,
             image_url: p.imageUrl,
             unit: p.unit,
@@ -719,11 +720,11 @@ export default function Products() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-[#1C1916] mb-1.5">Base Price (₦) <span className="text-[#C8521A]">*</span></label>
-                  <input type="number" min="0" value={form.base_price} onChange={e => setField('base_price', e.target.value)} placeholder="120000" className="w-full border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]" />
+                  <input type="number" min="0" value={form.base_price} onChange={e => setField('base_price', e.target.value)} onFocus={e => e.target.select()} placeholder="120000" className="w-full border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-[#1C1916] mb-1.5">Production Days <span className="text-[#C8521A]">*</span></label>
-                  <input type="number" min="1" value={form.production_days} onChange={e => setField('production_days', e.target.value)} className="w-full border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]" />
+                  <input type="number" min="1" value={form.production_days} onChange={e => setField('production_days', e.target.value)} onFocus={e => e.target.select()} className="w-full border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]" />
                 </div>
               </div>
               <div className="flex items-center gap-2.5">
@@ -808,7 +809,10 @@ export default function Products() {
                             <div className="w-6 h-6 rounded-md flex-shrink-0 border border-[#E5DFD5] bg-[#F7F3EC] overflow-hidden">
                               <img src={f.image_url} alt="" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                             </div>
-                            <span className={`text-xs font-medium truncate ${sel ? 'text-[#C8521A]' : 'text-[#6B6460]'}`}>{f.color_name}</span>
+                            <div className="flex flex-col min-w-0">
+                              <span className={`text-xs font-semibold truncate ${sel ? 'text-[#C8521A]' : 'text-[#1C1916]'}`}>{f.fabric_name}</span>
+                              <span className="text-[10px] text-[#9A8F87] truncate">{f.color_name}</span>
+                            </div>
                             {f.color_code && <span className="w-3 h-3 rounded-full flex-shrink-0 ml-auto" style={{ backgroundColor: f.color_code }} />}
                           </button>
                         );
