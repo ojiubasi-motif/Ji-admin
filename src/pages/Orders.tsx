@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { ShoppingBag, Search, Eye, RefreshCw } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { ShoppingBag, Search, Eye, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import { fetchApi } from '../lib/apiClient';
 import Modal from '../components/Modal';
 
@@ -64,6 +64,18 @@ export default function Orders({ userRole }: { userRole?: 'ADMIN' | 'TAILOR' }) 
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [actionError, setActionError] = useState('');
+  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
+        setFilterDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   async function loadOrders() {
     setLoading(true);
@@ -152,18 +164,18 @@ export default function Orders({ userRole }: { userRole?: 'ADMIN' | 'TAILOR' }) 
     const term = search.toLowerCase().trim();
     if (!term) return true;
 
-    const idMatch = o.id.toLowerCase().includes(term);
-    const firstNameMatch = o.user?.firstName?.toLowerCase().includes(term);
-    const lastNameMatch = o.user?.lastName?.toLowerCase().includes(term);
-    const emailMatch = o.user?.email?.toLowerCase().includes(term);
-    const notesMatch = o.notes?.toLowerCase().includes(term);
+    const idMatch = (o.id || '').toLowerCase().includes(term);
+    const firstNameMatch = o.user?.firstName?.toLowerCase()?.includes(term) || false;
+    const lastNameMatch = o.user?.lastName?.toLowerCase()?.includes(term) || false;
+    const emailMatch = o.user?.email?.toLowerCase()?.includes(term) || false;
+    const notesMatch = o.notes?.toLowerCase()?.includes(term) || false;
 
     // Matches product names inside items JSON
     const itemsMatch = o.items?.some(
       (item) =>
-        item.productName?.toLowerCase().includes(term) ||
-        item.notes?.toLowerCase().includes(term)
-    );
+        item.productName?.toLowerCase()?.includes(term) ||
+        item.notes?.toLowerCase()?.includes(term)
+    ) || false;
 
     return idMatch || firstNameMatch || lastNameMatch || emailMatch || notesMatch || itemsMatch;
   });
@@ -211,8 +223,7 @@ export default function Orders({ userRole }: { userRole?: 'ADMIN' | 'TAILOR' }) 
         </button>
       </div>
 
-      {/* Filters & Search */}
-      <div className="flex flex-col md:flex-row gap-3">
+      <div className="flex flex-col md:flex-row gap-3 relative" ref={filterDropdownRef}>
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9A8F87]" />
           <input
@@ -224,18 +235,47 @@ export default function Orders({ userRole }: { userRole?: 'ADMIN' | 'TAILOR' }) 
           />
         </div>
 
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm bg-white text-[#1C1916] focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A] shrink-0"
+        <button
+          onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
+          className="flex items-center justify-center gap-2 bg-white border border-[#E5DFD5] hover:border-[#C8521A] text-[#1C1916] px-4 py-2.5 rounded-xl text-sm font-semibold cursor-pointer transition-colors shrink-0"
         >
-          <option value="ALL">All Statuses</option>
-          <option value="PENDING">Pending</option>
-          <option value="CONFIRMED">Confirmed</option>
-          <option value="IN_PRODUCTION">In Production</option>
-          <option value="COMPLETED">Completed</option>
-          <option value="CANCELLED">Cancelled</option>
-        </select>
+          <SlidersHorizontal size={16} />
+          <span>Filters</span>
+          {statusFilter !== 'ALL' && (
+            <span className="w-2 h-2 bg-[#C8521A] rounded-full" />
+          )}
+        </button>
+
+        {filterDropdownOpen && (
+          <div className="absolute right-0 top-full mt-2 w-72 bg-white border border-[#E5DFD5] rounded-2xl shadow-xl py-4 z-40 space-y-4">
+            <div className="px-4">
+              <span className="block text-xs font-bold uppercase tracking-wider text-[#6B6460] mb-2">Order Status</span>
+              <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                {[
+                  { value: 'ALL', label: 'All Statuses' },
+                  { value: 'PENDING', label: 'Pending' },
+                  { value: 'CONFIRMED', label: 'Confirmed' },
+                  { value: 'IN_PRODUCTION', label: 'In Production' },
+                  { value: 'READY', label: 'Ready' },
+                  { value: 'DISPATCHED', label: 'Dispatched' },
+                  { value: 'DELIVERED', label: 'Delivered' },
+                  { value: 'CANCELLED', label: 'Cancelled' },
+                ].map(opt => {
+                  const isSel = statusFilter === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => { setStatusFilter(opt.value); setFilterDropdownOpen(false); }}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors ${isSel ? 'bg-[#F7F3EC] text-[#C8521A] font-medium' : 'text-[#1C1916] hover:bg-[#FAF8F5]'}`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {actionError && (

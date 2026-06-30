@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, Scissors, Search, ToggleLeft, ToggleRight, Upload, X } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { Plus, Pencil, Trash2, Scissors, Search, ToggleLeft, ToggleRight, Upload, X, SlidersHorizontal } from 'lucide-react';
 import { fetchApi } from '../lib/apiClient';
 import type { Fabric, FabricCategory } from '../types';
 import { UNIT_OPTIONS } from '../types';
@@ -77,6 +77,18 @@ export default function Fabrics() {
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState<'create' | 'edit' | null>(null);
   const [editing, setEditing] = useState<Fabric | null>(null);
+  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
+        setFilterDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   
   // Create mode uses nested properties array structure
   const [createForm, setCreateForm] = useState<FabricCreateForm>(defaultCreateForm());
@@ -465,7 +477,7 @@ export default function Fabrics() {
         </button>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-3 relative" ref={filterDropdownRef}>
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9A8F87]" />
           <input
@@ -476,16 +488,45 @@ export default function Fabrics() {
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#E5DFD5] rounded-xl text-sm text-[#1C1916] placeholder-[#9A8F87] focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]"
           />
         </div>
-        <select
-          value={selectedCategoryFilter}
-          onChange={e => setSelectedCategoryFilter(e.target.value)}
-          className="border border-[#E5DFD5] rounded-xl px-4 py-2.5 text-sm bg-white text-[#1C1916] focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A] w-full sm:w-48"
+        <button
+          onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
+          className="flex items-center justify-center gap-2 bg-white border border-[#E5DFD5] hover:border-[#C8521A] text-[#1C1916] px-4 py-2.5 rounded-xl text-sm font-semibold cursor-pointer transition-colors shrink-0"
         >
-          <option value="">All Categories</option>
-          {categories.map(c => (
-            <option key={c.id || (c as any)._id} value={c.id || (c as any)._id}>{c.name}</option>
-          ))}
-        </select>
+          <SlidersHorizontal size={16} />
+          <span>Filters</span>
+          {selectedCategoryFilter && (
+            <span className="w-2 h-2 bg-[#C8521A] rounded-full" />
+          )}
+        </button>
+
+        {filterDropdownOpen && (
+          <div className="absolute right-0 top-full mt-2 w-72 bg-white border border-[#E5DFD5] rounded-2xl shadow-xl py-4 z-40 space-y-4">
+            <div className="px-4">
+              <span className="block text-xs font-bold uppercase tracking-wider text-[#6B6460] mb-2">Fabric Category</span>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                <button
+                  onClick={() => { setSelectedCategoryFilter(''); setFilterDropdownOpen(false); }}
+                  className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors ${!selectedCategoryFilter ? 'bg-[#F7F3EC] text-[#C8521A] font-medium' : 'text-[#1C1916] hover:bg-[#FAF8F5]'}`}
+                >
+                  All Categories
+                </button>
+                {categories.map(c => {
+                  const id = c.id || (c as any)._id;
+                  const isSel = selectedCategoryFilter === id;
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => { setSelectedCategoryFilter(id); setFilterDropdownOpen(false); }}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors ${isSel ? 'bg-[#F7F3EC] text-[#C8521A] font-medium' : 'text-[#1C1916] hover:bg-[#FAF8F5]'}`}
+                    >
+                      {c.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl border border-[#E5DFD5] overflow-hidden">
