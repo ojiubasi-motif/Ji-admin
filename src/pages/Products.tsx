@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, Package, Search, ChevronRight, ChevronLeft, X, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Plus, Pencil, Trash2, Package, Search, ChevronRight, ChevronLeft, X, ToggleLeft, ToggleRight, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
 import { fetchApi } from '../lib/apiClient';
 import type { Product, Category, Fabric, FabricCategory, StyleOption } from '../types';
 import { GENDER_OPTIONS, OCCASION_OPTIONS } from '../types';
@@ -65,7 +65,17 @@ export default function Products() {
   const [allFabrics, setAllFabrics] = useState<Fabric[]>([]);
   const [fabricCategories, setFabricCategories] = useState<FabricCategory[]>([]);
   const [selectedFabricCategoryFilter, setSelectedFabricCategoryFilter] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedGender, setSelectedGender] = useState<string>('');
+  const [selectedOccasion, setSelectedOccasion] = useState<string>('');
+  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    category: true,
+    gender: false,
+    occasion: false,
+  });
   const [loading, setLoading] = useState(true);
+  const filterDropdownRef = React.useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -147,8 +157,13 @@ export default function Products() {
   async function load() {
     setLoading(true);
     try {
+      let queryParams = `?isActive=all&page=${currentPage}&limit=10&search=${encodeURIComponent(debouncedSearch)}`;
+      if (selectedCategory) queryParams += `&category=${selectedCategory}`;
+      if (selectedGender) queryParams += `&gender=${selectedGender.toLowerCase()}`;
+      if (selectedOccasion) queryParams += `&occasion=${selectedOccasion}`;
+
       const [prodsRes, catsRes, fabsRes, fabCatsRes] = await Promise.all([
-        fetchApi(`/v1/products?isActive=all&page=${currentPage}&limit=10&search=${encodeURIComponent(debouncedSearch)}`),
+        fetchApi(`/v1/products${queryParams}`),
         fetchApi('/v1/categories'),
         fetchApi('/v1/fabrics'),
         fetchApi('/v1/fabric-categories'),
@@ -195,7 +210,17 @@ export default function Products() {
     }
   }
 
-  useEffect(() => { load(); }, [currentPage, debouncedSearch]);
+  useEffect(() => { load(); }, [currentPage, debouncedSearch, selectedCategory, selectedGender, selectedOccasion]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
+        setFilterDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   async function handleOpenView(p: Product) {
     try {
@@ -404,10 +429,196 @@ export default function Products() {
         </button>
       </div>
 
-      <div className="relative">
-        <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9A8F87]" />
-        <input type="text" placeholder="Search products…" value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1); }} className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#E5DFD5] rounded-xl text-sm text-[#1C1916] placeholder-[#9A8F87] focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]" />
+      <div className="flex gap-3 relative" ref={filterDropdownRef}>
+        <div className="relative flex-1">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9A8F87]" />
+          <input type="text" placeholder="Search products…" value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1); }} className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#E5DFD5] rounded-xl text-sm text-[#1C1916] placeholder-[#9A8F87] focus:outline-none focus:ring-2 focus:ring-[#C8521A]/30 focus:border-[#C8521A]" />
+        </div>
+        <button
+          onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
+          className="flex items-center gap-2 bg-white border border-[#E5DFD5] hover:border-[#C8521A] text-[#1C1916] px-4 py-2.5 rounded-xl text-sm font-semibold cursor-pointer transition-colors shrink-0"
+        >
+          <SlidersHorizontal size={16} />
+          <span>Filters</span>
+          {(selectedCategory || selectedGender || selectedOccasion) && (
+            <span className="w-2 h-2 bg-[#C8521A] rounded-full" />
+          )}
+        </button>
+
+        {filterDropdownOpen && (
+          <div className="absolute right-0 top-full mt-2 w-72 bg-white border border-[#E5DFD5] rounded-2xl shadow-xl py-4 z-40 space-y-4">
+            <div className="flex items-center justify-between px-4 pb-2 border-b border-[#FAF8F5]">
+              <span className="text-xs font-bold text-[#1C1916] uppercase tracking-wider">Filters</span>
+              {(selectedCategory || selectedGender || selectedOccasion) && (
+                <button
+                  onClick={() => {
+                    setSelectedCategory('');
+                    setSelectedGender('');
+                    setSelectedOccasion('');
+                    setCurrentPage(1);
+                  }}
+                  className="text-xs text-[#C8521A] font-semibold hover:underline"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
+
+            {/* Category Collapsible */}
+            <div className="px-4">
+              <button
+                onClick={() => setExpandedSections(prev => ({ ...prev, category: !prev.category }))}
+                className="flex items-center justify-between w-full text-left"
+              >
+                <span className="text-sm font-semibold text-[#1C1916]">Category</span>
+                {expandedSections.category ? <ChevronUp size={14} className="text-[#9A8F87]" /> : <ChevronDown size={14} className="text-[#9A8F87]" />}
+              </button>
+              {expandedSections.category && (
+                <div className="mt-2 pl-1 space-y-2 max-h-36 overflow-y-auto pr-1">
+                  {allCategories.map(c => {
+                    const active = selectedCategory === c.slug;
+                    return (
+                      <button
+                        key={c.slug}
+                        onClick={() => {
+                          setSelectedCategory(active ? '' : c.slug);
+                          setCurrentPage(1);
+                        }}
+                        className="flex items-center gap-2.5 w-full text-left group py-0.5 cursor-pointer"
+                      >
+                        <div
+                          className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-all ${
+                            active
+                              ? 'bg-[#C8521A] border-[#C8521A]'
+                              : 'border-[#E5DFD5] bg-white group-hover:border-[#9A8F87]'
+                          }`}
+                        >
+                          {active && (
+                            <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
+                              <path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </div>
+                        <span className={`text-xs font-medium transition-colors ${active ? 'text-[#C8521A]' : 'text-[#6B6460] group-hover:text-[#1C1916]'}`}>{c.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Gender Collapsible */}
+            <div className="px-4 border-t border-[#F7F3EC] pt-3">
+              <button
+                onClick={() => setExpandedSections(prev => ({ ...prev, gender: !prev.gender }))}
+                className="flex items-center justify-between w-full text-left"
+              >
+                <span className="text-sm font-semibold text-[#1C1916]">Gender</span>
+                {expandedSections.gender ? <ChevronUp size={14} className="text-[#9A8F87]" /> : <ChevronDown size={14} className="text-[#9A8F87]" />}
+              </button>
+              {expandedSections.gender && (
+                <div className="mt-2 pl-1 space-y-2">
+                  {['Men', 'Women', 'Kids', 'Unisex'].map(g => {
+                    const active = selectedGender === g;
+                    return (
+                      <button
+                        key={g}
+                        onClick={() => {
+                          setSelectedGender(active ? '' : g);
+                          setCurrentPage(1);
+                        }}
+                        className="flex items-center gap-2.5 w-full text-left group py-0.5 cursor-pointer"
+                      >
+                        <div
+                          className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-all ${
+                            active
+                              ? 'bg-[#C8521A] border-[#C8521A]'
+                              : 'border-[#E5DFD5] bg-white group-hover:border-[#9A8F87]'
+                          }`}
+                        >
+                          {active && (
+                            <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
+                              <path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </div>
+                        <span className={`text-xs font-medium transition-colors ${active ? 'text-[#C8521A]' : 'text-[#6B6460] group-hover:text-[#1C1916]'}`}>{g}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Occasion Collapsible */}
+            <div className="px-4 border-t border-[#F7F3EC] pt-3">
+              <button
+                onClick={() => setExpandedSections(prev => ({ ...prev, occasion: !prev.occasion }))}
+                className="flex items-center justify-between w-full text-left"
+              >
+                <span className="text-sm font-semibold text-[#1C1916]">Occasion</span>
+                {expandedSections.occasion ? <ChevronUp size={14} className="text-[#9A8F87]" /> : <ChevronDown size={14} className="text-[#9A8F87]" />}
+              </button>
+              {expandedSections.occasion && (
+                <div className="mt-2 pl-1 space-y-2">
+                  {Object.entries(OCCASION_LABELS).map(([val, label]) => {
+                    const active = selectedOccasion === val;
+                    return (
+                      <button
+                        key={val}
+                        onClick={() => {
+                          setSelectedOccasion(active ? '' : val);
+                          setCurrentPage(1);
+                        }}
+                        className="flex items-center gap-2.5 w-full text-left group py-0.5 cursor-pointer"
+                      >
+                        <div
+                          className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-all ${
+                            active
+                              ? 'bg-[#C8521A] border-[#C8521A]'
+                              : 'border-[#E5DFD5] bg-white group-hover:border-[#9A8F87]'
+                          }`}
+                        >
+                          {active && (
+                            <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
+                              <path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </div>
+                        <span className={`text-xs font-medium transition-colors ${active ? 'text-[#C8521A]' : 'text-[#6B6460] group-hover:text-[#1C1916]'}`}>{label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Active filters tags */}
+      {(selectedCategory || selectedGender || selectedOccasion) && (
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          {selectedCategory && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#FAF8F5] text-[#6B6460] text-xs font-medium border border-[#E5DFD5]">
+              Category: {allCategories.find(c => c.slug === selectedCategory)?.name || selectedCategory}
+              <button onClick={() => setSelectedCategory('')} className="hover:text-[#C8521A] ml-1 cursor-pointer"><X size={12} /></button>
+            </span>
+          )}
+          {selectedGender && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#FAF8F5] text-[#6B6460] text-xs font-medium border border-[#E5DFD5]">
+              Gender: {selectedGender}
+              <button onClick={() => setSelectedGender('')} className="hover:text-[#C8521A] ml-1 cursor-pointer"><X size={12} /></button>
+            </span>
+          )}
+          {selectedOccasion && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#FAF8F5] text-[#6B6460] text-xs font-medium border border-[#E5DFD5]">
+              Occasion: {OCCASION_LABELS[selectedOccasion] || selectedOccasion}
+              <button onClick={() => setSelectedOccasion('')} className="hover:text-[#C8521A] ml-1 cursor-pointer"><X size={12} /></button>
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl border border-[#E5DFD5] overflow-hidden">
         {loading ? (
