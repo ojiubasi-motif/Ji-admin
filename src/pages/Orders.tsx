@@ -11,6 +11,7 @@ interface OrderItem {
   colorName?: string;
   fabricImgUrl?: string;
   styleImgUrl?: string;
+  imgUrl?: string;
   basePrice: number;
   styleModifier?: number;
   fabricModifier?: number;
@@ -202,6 +203,18 @@ export default function Orders({ userRole }: { userRole?: 'ADMIN' | 'TAILOR' }) 
         return 'bg-[#F7F3EC] text-[#6B6460] border-[#E5DFD5]';
     }
   };
+
+  // Parse selected order notes if present
+  let parsedNotes: any = null;
+  let isJsonNotes = false;
+  if (selectedOrder && selectedOrder.notes) {
+    try {
+      parsedNotes = JSON.parse(selectedOrder.notes);
+      isJsonNotes = parsedNotes && typeof parsedNotes === 'object';
+    } catch (e) {
+      // Ignore
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -443,11 +456,17 @@ export default function Orders({ userRole }: { userRole?: 'ADMIN' | 'TAILOR' }) 
               <h4 className="text-xs font-bold uppercase tracking-wider text-[#9A8F87] border-b border-[#E5DFD5] pb-1.5">Items & Customizations</h4>
               {selectedOrder.items && selectedOrder.items.length > 0 ? (
                 selectedOrder.items.map((item, idx) => (
-                  <div key={idx} className="border border-[#F7F3EC] rounded-xl p-3.5 bg-white space-y-2">
-                    <div className="flex justify-between items-start gap-2">
-                      <p className="text-sm font-semibold text-[#1C1916]">{item.productName || 'Garment Detail'}</p>
-                      <span className="text-xs font-semibold text-[#C8521A]">₦{item.basePrice.toLocaleString()}</span>
-                    </div>
+                  <div key={idx} className="border border-[#F7F3EC] rounded-xl p-3.5 bg-white flex gap-4 items-start">
+                    {item.imgUrl && (
+                      <div className="w-16 h-16 rounded-xl overflow-hidden border border-[#E5DFD5] bg-[#FAF8F5] shrink-0">
+                        <img src={item.imgUrl} alt={item.productName} className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                    <div className="flex-1 space-y-2 min-w-0">
+                      <div className="flex justify-between items-start gap-2">
+                        <p className="text-sm font-semibold text-[#1C1916]">{item.productName || 'Garment Detail'}</p>
+                        <span className="text-xs font-semibold text-[#C8521A]">₦{item.basePrice.toLocaleString()}</span>
+                      </div>
                     
                     {/* Render properties if any */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-[#6B6460]">
@@ -495,6 +514,7 @@ export default function Orders({ userRole }: { userRole?: 'ADMIN' | 'TAILOR' }) 
                         <strong>Notes:</strong> {item.notes}
                       </p>
                     )}
+                    </div>
                   </div>
                 ))
               ) : (
@@ -502,48 +522,31 @@ export default function Orders({ userRole }: { userRole?: 'ADMIN' | 'TAILOR' }) 
               )}
             </div>
 
-            {/* Delivery Details & Tailor Instructions */}
-            {(() => {
-              let parsedNotes: any = null;
-              let isJsonNotes = false;
-              if (selectedOrder.notes) {
-                try {
-                  parsedNotes = JSON.parse(selectedOrder.notes);
-                  isJsonNotes = parsedNotes && typeof parsedNotes === 'object';
-                } catch (e) {
-                  // Legacy plaintext notes
-                }
-              }
-
-              return (
-                <>
-                  {isJsonNotes && parsedNotes?.delivery && (
-                    <div className="space-y-2">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-[#9A8F87] border-b border-[#E5DFD5] pb-1.5">Delivery Details</h4>
-                      <div className="text-xs text-[#6B6460] space-y-1.5 bg-[#FAF8F5] border border-[#E5DFD5] rounded-xl p-3.5">
-                        <p><strong>Recipient:</strong> {parsedNotes.delivery.fullName}</p>
-                        <p><strong>Phone:</strong> {parsedNotes.delivery.phoneNumber}</p>
-                        <p><strong>Address:</strong> {parsedNotes.delivery.address}, {parsedNotes.delivery.city}, {parsedNotes.delivery.state}, {parsedNotes.delivery.country}</p>
-                        <p><strong>Method:</strong> <span className="capitalize">{parsedNotes.delivery.deliveryMethod}</span></p>
-                        {parsedNotes.promoCode && (
-                          <p><strong>Promo Code:</strong> <span className="font-mono bg-green-50 text-green-700 px-1 py-0.5 rounded border border-green-200">{parsedNotes.promoCode}</span></p>
-                        )}
-                      </div>
-                    </div>
+            {/* Delivery Details */}
+            {isJsonNotes && parsedNotes?.delivery && (
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[#9A8F87] border-b border-[#E5DFD5] pb-1.5">Delivery Details</h4>
+                <div className="text-xs text-[#6B6460] space-y-1.5 bg-[#FAF8F5] border border-[#E5DFD5] rounded-xl p-3.5">
+                  <p><strong>Recipient:</strong> {parsedNotes.delivery.fullName}</p>
+                  <p><strong>Phone:</strong> {parsedNotes.delivery.phoneNumber}</p>
+                  <p><strong>Address:</strong> {parsedNotes.delivery.address}, {parsedNotes.delivery.city}, {parsedNotes.delivery.state}, {parsedNotes.delivery.country}</p>
+                  <p><strong>Method:</strong> <span className="capitalize">{parsedNotes.delivery.deliveryMethod}</span></p>
+                  {parsedNotes.promoCode && (
+                    <p><strong>Promo Code:</strong> <span className="font-mono bg-green-50 text-green-700 px-1 py-0.5 rounded border border-green-200">{parsedNotes.promoCode}</span></p>
                   )}
+                </div>
+              </div>
+            )}
 
-                  {/* Legacy plaintext notes or global tailor notes inside JSON */}
-                  {((selectedOrder.notes && !isJsonNotes) || (isJsonNotes && parsedNotes?.notes)) && (
-                    <div className="space-y-2">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-[#9A8F87] border-b border-[#E5DFD5] pb-1.5">Tailor Instructions / Notes</h4>
-                      <p className="text-xs bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-[#6B6460] leading-relaxed">
-                        {isJsonNotes ? parsedNotes.notes : selectedOrder.notes}
-                      </p>
-                    </div>
-                  )}
-                </>
-              );
-            })()}
+            {/* Legacy plaintext notes or global tailor notes inside JSON */}
+            {((selectedOrder.notes && !isJsonNotes) || (isJsonNotes && parsedNotes?.notes)) && (
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[#9A8F87] border-b border-[#E5DFD5] pb-1.5">Tailor Instructions / Notes</h4>
+                <p className="text-xs bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-[#6B6460] leading-relaxed">
+                  {isJsonNotes ? parsedNotes.notes : selectedOrder.notes}
+                </p>
+              </div>
+            )}
 
             {/* Payment Details */}
             <div className="space-y-2">
