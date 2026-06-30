@@ -186,10 +186,47 @@ export default function Fabrics() {
     });
   }
 
+  function extractPublicId(url: string): string | null {
+    if (!url || !url.includes('cloudinary.com')) return null;
+    try {
+      const parts = url.split('/image/upload/');
+      if (parts.length < 2) return null;
+      let path = parts[1];
+      const versionMatch = path.match(/^v\d+\//);
+      if (versionMatch) {
+        path = path.replace(/^v\d+\//, '');
+      }
+      const lastDot = path.lastIndexOf('.');
+      if (lastDot !== -1) {
+        path = path.substring(0, lastDot);
+      }
+      return path;
+    } catch (err) {
+      console.error('Failed to extract publicId:', err);
+      return null;
+    }
+  }
+
+  async function deleteImage(imageUrl: string) {
+    const publicId = extractPublicId(imageUrl);
+    if (!publicId) return;
+
+    try {
+      await fetchApi('/v1/admin/uploads', {
+        method: 'DELETE',
+        body: JSON.stringify({ publicId }),
+      });
+    } catch (err) {
+      console.error('Failed to delete image from Cloudinary:', err);
+    }
+  }
+
   // File upload for editing single variant
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const oldUrl = form.image_url;
 
     setUploading(true);
     setError('');
@@ -205,6 +242,9 @@ export default function Fabrics() {
 
       if (res?.url) {
         setField('image_url', res.url);
+        if (oldUrl) {
+          deleteImage(oldUrl);
+        }
       } else {
         throw new Error('Upload succeeded but no image URL was returned.');
       }
@@ -219,6 +259,8 @@ export default function Fabrics() {
   async function handleCreatePropertyFileUpload(idx: number, e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const oldUrl = createForm.properties[idx]?.imageUrl;
 
     setCreateForm(prev => {
       const copy = [...prev.properties];
@@ -242,6 +284,9 @@ export default function Fabrics() {
           copy[idx] = { ...copy[idx], imageUrl: res.url, uploading: false };
           return { ...prev, properties: copy };
         });
+        if (oldUrl) {
+          deleteImage(oldUrl);
+        }
       } else {
         throw new Error('Upload succeeded but no image URL was returned.');
       }
@@ -605,7 +650,13 @@ export default function Fabrics() {
                             <img src={p.imageUrl} alt="" className="w-full h-full object-cover" />
                             <button
                               type="button"
-                              onClick={() => updatePropertyField(idx, 'imageUrl', '')}
+                              onClick={async () => {
+                                const url = p.imageUrl;
+                                updatePropertyField(idx, 'imageUrl', '');
+                                if (url) {
+                                  await deleteImage(url);
+                                }
+                              }}
                               className="absolute top-1.5 right-1.5 p-1 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
                             >
                               <X size={12} />
@@ -742,7 +793,13 @@ export default function Fabrics() {
                     <img src={form.image_url} alt="" className="w-full h-full object-cover" />
                     <button
                       type="button"
-                      onClick={() => setField('image_url', '')}
+                      onClick={async () => {
+                        const url = form.image_url;
+                        setField('image_url', '');
+                        if (url) {
+                          await deleteImage(url);
+                        }
+                      }}
                       className="absolute top-1.5 right-1.5 p-1 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
                     >
                       <X size={12} />
